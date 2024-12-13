@@ -1,0 +1,25 @@
+<!-- templates/index.html -->
+{% extends "base.html" %}
+{% block title %}Главная{% endblock %}
+{% block content %}
+    <div class="page-content fade-in">
+        <h1>Добро пожаловать</h1>
+        <p>Это главная страница нашего сайта</p>
+    </div>
+<div class="cases-showcase">
+    <h1>Доступные кейсы</h1>
+    <div class="cases-grid">
+        {% for case in cases %}
+        <a href="{{ url_for('view_case', case_id=case.id) }}" class="case-card animate-hover">
+            <div class="case-image">
+                <img src="{{ url_for('static', filename='uploads/' + case.image) }}" alt="{{ case.name }}">
+            </div>
+            <div class="case-info">
+                <h3>{{ case.name }}</h3>
+                <p class="case-price">{{ case.price }} ₽</p>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

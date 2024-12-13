@@ -1,0 +1,108 @@
+<!-- templates/case.html -->
+{% extends "base.html" %}
+{% block content %}
+<div class="case-view">
+    <div class="case-details">
+        <h1>{{ case.name }}</h1>
+        <div class="case-main">
+            <img src="{{ url_for('static', filename='uploads/' + case.image) }}" alt="{{ case.name }}">
+            <div class="case-info">
+                <p class="case-price">Цена открытия: {{ case.price }} ₽</p>
+                {% if current_user.is_authenticated %}
+                    {% if current_user.balance >= case.price %}
+                    <button class="btn open-case" data-case-id="{{ case.id }}">
+                        <i class="fas fa-unlock"></i> Открыть кейс
+                    </button>
+                    {% else %}
+                    <p class="error-message">Недостаточно средств</p>
+                    {% endif %}
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="btn">Войдите для открытия</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="possible-items">
+        <h2>Возможные предметы</h2>
+        <div class="items-carousel">
+            {% for case_item in case.items %}
+            <div class="item-card">
+                <img src="{{ url_for('static', filename='uploads/' + case_item.item.image) }}" 
+                     alt="{{ case_item.item.name }}">
+                <div class="item-info">
+                    <h3>{{ case_item.item.name }}</h3>
+                    <p>{{ case_item.chance }}%</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="roulette-modal" style="display: none;">
+        <div class="roulette-container">
+            <div class="roulette-items"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelector('.open-case').addEventListener('click', function() {
+    const caseId = this.dataset.caseId;
+    openCase(caseId);
+});
+
+function openCase(caseId) {
+    // Показываем модальное окно с рулеткой
+    const modal = document.querySelector('.roulette-modal');
+    modal.style.display = 'flex';
+
+    fetch(`/open_case/${caseId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Анимация рулетки
+            animateRoulette(data.item);
+        } else {
+            alert(data.message);
+            modal.style.display = 'none';
+        }
+    });
+}
+
+function animateRoulette(wonItem) {
+    const roulette = document.querySelector('.roulette-items');
+    // Генерируем случайные предметы для анимации
+    const items = generateRandomItems(wonItem);
+    roulette.innerHTML = items.map(item => `
+        <div class="roulette-item">
+            <img src="/static/uploads/${item.image}" alt="${item.name}">
+            <p>${item.name}</p>
+        </div>
+    `).join('');
+
+    // Запускаем анимацию
+    roulette.style.transform = 'translateX(-' + (items.length - 5) * 200 + 'px)';
+    
+    // После завершения анимации
+    setTimeout(() => {
+        alert(`Поздравляем! Вы выиграли ${wonItem.name}!`);
+        location.reload();
+    }, 5000);
+}
+
+function generateRandomItems(wonItem) {
+    // Генерируем массив случайных предметов для анимации
+    const items = [];
+    for (let i = 0; i < 50; i++) {
+        items.push(wonItem);
+    }
+    return items;
+}
+</script>
+{% endblock %}

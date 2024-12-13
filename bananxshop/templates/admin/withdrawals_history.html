@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="page-title">
+        <i class="fas fa-history"></i>
+        История выводов
+    </h2>
+    
+    <div class="withdrawals-grid">
+        {% for withdrawal in withdrawals %}
+        <div class="withdrawal-card {{ withdrawal.status }}">
+            <div class="card-header">
+                <div class="user-info">
+                    <div class="avatar-wrapper">
+                        <img src="{{ url_for('static', filename='uploads/' + withdrawal.user.avatar) }}" 
+                             alt="Avatar" class="user-avatar">
+                    </div>
+                    <div class="user-details">
+                        <h3>{{ withdrawal.user.username }}</h3>
+                        <span class="timestamp">
+                            <i class="far fa-clock"></i>
+                            {{ withdrawal.created_at.strftime('%d.%m.%Y %H:%M') }}
+                        </span>
+                    </div>
+                </div>
+                <div class="status-badge {{ withdrawal.status }}">
+                    {% if withdrawal.status == 'completed' %}
+                        <i class="fas fa-check"></i> Выведено
+                    {% else %}
+                        <i class="fas fa-times"></i> Отклонено
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="item-info">
+                <div class="item-image-wrapper">
+                    <img src="{{ url_for('static', filename='uploads/' + withdrawal.item.image) }}" 
+                         alt="{{ withdrawal.item.name }}" class="item-image">
+                    <div class="item-hover">
+                        <span class="item-price-tag">
+                            <i class="fas fa-tag"></i>
+                            {{ withdrawal.item.price }}₽
+                        </span>
+                    </div>
+                </div>
+                <div class="item-details">
+                    <h4>{{ withdrawal.item.name }}</h4>
+                    <p class="item-price">{{ withdrawal.item.price }}₽</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+/* Обновленные стили для аватара */
+.avatar-wrapper {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.user-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Стили для статуса */
+.status-badge {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.status-badge.completed {
+    background: #2ecc71;
+    color: white;
+}
+
+.status-badge.rejected {
+    background: #e74c3c;
+    color: white;
+}
+
+.withdrawal-card.completed {
+    border-left: 4px solid #2ecc71;
+}
+
+.withdrawal-card.rejected {
+    border-left: 4px solid #e74c3c;
+}
+
+/* Остальные стили остаются такими же как в withdrawals.html */
+</style>
+{% endblock %} 

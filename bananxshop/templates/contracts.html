@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="contracts-section">
+        <div class="contracts-header">
+            <h2>Контракты обмена</h2>
+            <p class="contracts-info">Выберите от 5 до 10 предметов для обмена на один случайный предмет стоимостью от 20% до 120% от суммы выбранных предметов</p>
+        </div>
+
+        <div class="contract-area">
+            <div class="selected-items">
+                <h3>Выбранные предметы</h3>
+                <div class="selected-items-grid" id="selectedItems">
+                    <!-- Сюда будут добавляться выбранные предметы -->
+                </div>
+                <div class="contract-stats">
+                    <p>Выбрано предметов: <span id="itemCount">0</span>/10</p>
+                    <p>Общая стоимость: <span id="totalValue">0</span>₽</p>
+                    <p>Возможный выигрыш: <span id="possibleWin">0</span>₽ - <span id="maxWin">0</span>₽</p>
+                </div>
+                <button id="executeContract" class="execute-btn" disabled>
+                    Заключить контракт
+                </button>
+            </div>
+
+            <div class="inventory-items">
+                <h3>Ваш инвентарь</h3>
+                <div class="items-grid">
+                    {% for inv_item in inventory %}
+                    <div class="inventory-item" 
+                         data-id="{{ inv_item.id }}"
+                         data-price="{{ inv_item.item.price }}"
+                         data-name="{{ inv_item.item.name }}"
+                         data-image="{{ url_for('static', filename='uploads/' + inv_item.item.image) }}">
+                        <img src="{{ url_for('static', filename='uploads/' + inv_item.item.image) }}" 
+                             alt="{{ inv_item.item.name }}">
+                        <div class="item-info">
+                            <h4>{{ inv_item.item.name }}</h4>
+                            <p>{{ inv_item.item.price }}₽</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно ани��ации контракта -->
+<div id="contractModal" class="contract-modal">
+    <div class="contract-animation">
+        <div class="items-fusion">
+            <div class="source-items"></div>
+            <div class="fusion-effect"></div>
+            <div class="result-item"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const selectedItems = new Set();
+let isProcessing = false;
+
+document.querySelectorAll('.inventory-item').forEach(item => {
+    item.addEventListener('click', () => {
+        if (isProcessing) return;
+        
+        const itemId = item.dataset.id;
+        
+        if (selectedItems.has(itemId)) {
+            selectedItems.delete(itemId);
+            item.classList.remove('selected');
+        } else if (selectedItems.size < 10) {
+            selectedItems.add(itemId);
+            item.classList.add('selected');
+        }
+        
+        updateContractStats();
+    });
+});
+
+function updateContractStats() {
+    const selectedElements = Array.from(document.querySelectorAll('.inventory-item.selected'));
+    const totalValue = selectedElements.reduce((sum, item) => sum + parseFloat(item.dataset.price), 0);
+    
+    document.getElementById('itemCount').textContent = selectedElements.length;
+    document.getElementById('totalValue').textContent = totalValue.toFixed(2);
+    document.getElementById('possibleWin').textContent = (totalValue * 0.2).toFixed(2);
+    document.getElementById('maxWin').textContent = (totalValue * 1.2).toFixed(2);
+    
+    const executeBtn = document.getElementById('executeContract');
+    executeBtn.disabled = selectedElements.length < 5;
+}
+
+document.getElementById('executeContract').addEventListener('click', () => {
+    if (isProcessing) return;
+    isProcessing = true;
+    
+    const selectedElements = Array.from(document.querySelectorAll('.inventory-item.selected'));
+    const itemIds = selectedElements.map(item => item.dataset.id);
+    
+    fetch('/execute_contract', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            item_ids: Array.from(itemIds)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showContractAnimation(data.used_items, data.won_item);
+        } else {
+            alert(data.message);
+            isProcessing = false;
+        }
+    });
+});
+
+function showContractAnimation(usedItems, wonItem) {
+    const modal = document.getElementById('contractModal');
+    const sourceItems = modal.querySelector('.source-items');
+    const resultItem = modal.querySelector('.result-item');
+    
+    // Показываем использванные предметы
+    sourceItems.innerHTML = usedItems.map(item => `
+        <div class="contract-item">
+            <img src="${item.image}" alt="${item.name}">
+        </div>
+    `).join('');
+    
+    modal.style.display = 'flex';
+    
+    // Анимация слияния
+    setTimeout(() => {
+        sourceItems.classList.add('fusion-start');
+        
+        setTimeout(() => {
+            // Показываем выигранный предмет
+            resultItem.innerHTML = `
+                <div class="contract-item winner">
+                    <img src="${wonItem.image}" alt="${wonItem.name}">
+                    <h4>${wonItem.name}</h4>
+                    <p>${wonItem.price}₽</p>
+                </div>
+            `;
+            resultItem.classList.add('show');
+            
+            setTimeout(() => {
+                modal.style.display = 'none';
+                window.location.reload();
+            }, 3000);
+        }, 2000);
+    }, 1000);
+}
+</script>
+
+<style>
+.contracts-section {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.contract-area {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.selected-items {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    position: sticky;
+    top: 20px;
+}
+
+.selected-items-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin: 15px 0;
+    min-height: 200px;
+}
+
+.contract-stats {
+    margin: 15px 0;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+}
+
+.execute-btn {
+    width: 100%;
+    padding: 15px;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.execute-btn:not(:disabled):hover {
+    background: #c0392b;
+    transform: translateY(-2px);
+}
+
+.execute-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.inventory-item {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 220px; /* Фиксированная высота */
+}
+
+.inventory-item img {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.item-info {
+    width: 100%;
+    text-align: center;
+}
+
+.item-info h4 {
+    font-size: 14px;
+    margin: 5px 0;
+    color: #2c3e50;
+    /* Ограничиваем длину названия */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.item-info p {
+    font-size: 16px;
+    color: #2ecc71;
+    font-weight: bold;
+    margin: 5px 0;
+}
+
+.contract-item {
+    background: rgba(255,255,255,0.1);
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    width: 120px; /* Фиксированная ширина */
+    height: 120px; /* Фиксированная высота */
+}
+
+.contract-item img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.contract-item.winner {
+    background: rgba(255,215,0,0.2);
+    transform: scale(1.2);
+    width: 150px; /* Чуть больше для выигрышного предмета */
+    height: 150px;
+}
+
+.contract-item.winner img {
+    width: 130px;
+    height: 130px;
+}
+
+.items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.selected-items-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin: 15px 0;
+    min-height: 200px;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.contract-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.9);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.contract-animation {
+    width: 100%;
+    max-width: 800px;
+    height: 400px;
+    position: relative;
+}
+
+.items-fusion {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.source-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+    transition: all 1s ease;
+}
+
+.fusion-effect {
+    width: 100px;
+    height: 100px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, #e74c3c, transparent);
+    opacity: 0;
+    transition: all 0.5s ease;
+}
+
+.source-items.fusion-start {
+    transform: scale(0.1);
+    opacity: 0;
+}
+
+.source-items.fusion-start + .fusion-effect {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(2);
+}
+
+.result-item {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    transition: all 0.5s ease;
+}
+
+.result-item.show {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+}
+
+.contract-item {
+    background: rgba(255,255,255,0.1);
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.contract-item img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.contract-item.winner {
+    background: rgba(255,215,0,0.2);
+    transform: scale(1.2);
+}
+
+.contract-item.winner img {
+    width: 120px;
+    height: 120px;
+}
+
+@keyframes fusion {
+    0% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(0.1) rotate(180deg); }
+    100% { transform: scale(1) rotate(360deg); }
+}
+</style>
+{% endblock %} 

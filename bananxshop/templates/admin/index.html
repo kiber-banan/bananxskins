@@ -1,0 +1,96 @@
+<!-- templates/admin/index.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="page-title">
+        <i class="fas fa-cog"></i>
+        Админ-панель
+    </h2>
+    
+    <div class="admin-menu">
+        <a href="{{ url_for('admin_items') }}" class="admin-btn">
+            <i class="fas fa-box"></i>
+            <h3>Управление предметами</h3>
+            <p>Создание и редактирование предметов</p>
+        </a>
+        
+        <a href="{{ url_for('admin_cases') }}" class="admin-btn">
+            <i class="fas fa-boxes"></i>
+            <h3>Управление кейсами</h3>
+            <p>Создание и редактирование кейсов</p>
+        </a>
+        
+        <a href="{{ url_for('admin_users') }}" class="admin-btn">
+            <i class="fas fa-users"></i>
+            <h3>Управление пользователями</h3>
+            <p>Просмотр и управление пользователями</p>
+        </a>
+        
+        <a href="{{ url_for('admin_withdrawals') }}" class="admin-btn">
+            <i class="fas fa-money-bill-wave"></i>
+            <h3>Заявки на вывод</h3>
+            <p>Обработка заявок на вывод</p>
+        </a>
+        
+        <a href="{{ url_for('admin_withdrawals_history') }}" class="admin-btn">
+            <i class="fas fa-history"></i>
+            <h3>История выводов</h3>
+            <p>Просмотр обработанных заявок</p>
+        </a>
+    </div>
+</div>
+
+<style>
+.page-title {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: #2c3e50;
+    margin-bottom: 30px;
+    font-size: 28px;
+}
+
+.page-title i {
+    color: #3498db;
+}
+
+.admin-menu {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.admin-btn {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #2c3e50;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.admin-btn:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+.admin-btn i {
+    font-size: 24px;
+    color: #3498db;
+    margin-bottom: 15px;
+}
+
+.admin-btn h3 {
+    margin: 10px 0;
+    font-size: 18px;
+}
+
+.admin-btn p {
+    color: #7f8c8d;
+    font-size: 14px;
+    margin: 0;
+}
+</style>
+{% endblock %}

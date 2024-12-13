@@ -1,0 +1,386 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BananxShop</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <div class="nav-left">
+                <a href="{{ url_for('index') }}" class="logo-link">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="site-logo">
+                </a>
+                <a href="{{ url_for('index') }}" class="nav-link">
+                    <i class="fas fa-home"></i>
+                    Главная страница
+                </a>
+            </div>
+            <div class="nav-right">
+                {% if current_user.is_authenticated %}
+                    <a href="#" class="nav-link balance-btn" onclick="showTopUpModal()">
+                        <i class="fas fa-wallet"></i>
+                        {{ current_user.balance }}₽
+                    </a>
+                    <a href="{{ url_for('profile') }}" class="nav-link">
+                        <i class="fas fa-user"></i>
+                        Профиль
+                    </a>
+                    {% if current_user.is_admin %}
+                        <a href="{{ url_for('admin_index') }}" class="nav-link">
+                            <i class="fas fa-cog"></i>
+                            Админ-панель
+                        </a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="nav-link">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Выход
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="nav-link">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Вход
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <div id="topUpModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeTopUpModal()">&times;</span>
+            <h2>Пополнение баланса</h2>
+            <div class="top-up-form">
+                <div class="amount-buttons">
+                    <button onclick="setAmount(100)" class="amount-btn">100₽</button>
+                    <button onclick="setAmount(500)" class="amount-btn">500₽</button>
+                    <button onclick="setAmount(1000)" class="amount-btn">1000₽</button>
+                    <button onclick="setAmount(5000)" class="amount-btn">5000₽</button>
+                </div>
+                <input type="number" id="customAmount" placeholder="Другая сумма" min="100">
+                <button onclick="processPayment()" class="pay-btn">
+                    <i class="fas fa-credit-card"></i>
+                    Оплатить
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function showTopUpModal() {
+        document.getElementById('topUpModal').style.display = 'flex';
+    }
+
+    function closeTopUpModal() {
+        document.getElementById('topUpModal').style.display = 'none';
+    }
+
+    function setAmount(amount) {
+        document.getElementById('customAmount').value = amount;
+    }
+
+    function processPayment() {
+        const amount = document.getElementById('customAmount').value;
+        if (amount < 100) {
+            alert('Минимальная сумма пополнения 100₽');
+            return;
+        }
+        
+        fetch('/create_payment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ amount: amount })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.payment_url) {
+                window.location.href = data.payment_url;
+            } else {
+                alert('Ошибка создания платежа');
+            }
+        });
+    }
+    </script>
+</body>
+</html>
+
+<style>
+.navbar {
+    background: #1a1a1a;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 5px 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+body {
+    background: #222222;
+    color: #ffd700;
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
+
+.nav-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+}
+
+.nav-left {
+    display: flex;
+    align-items: center;
+}
+
+.logo-link {
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    margin-top: -20px;
+    margin-bottom: -20px;
+}
+
+.site-logo {
+    height: 80px;
+    width: auto;
+    transition: transform 0.3s ease;
+}
+
+.site-logo:hover {
+    transform: scale(1.05);
+}
+
+.nav-right {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: #ffd700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    border: 2px solid #ffd700;
+}
+
+.nav-link:hover {
+    background: #ffd700;
+    color: #1a1a1a;
+    transform: translateY(-2px);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+}
+
+.nav-link i {
+    font-size: 16px;
+}
+
+.content {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 0 20px;
+    background: #1a1a1a;
+    border-radius: 15px;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+}
+
+.nav-left .nav-link {
+    margin-left: 20px;
+}
+
+/* Стилизация скроллбара */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #ffd700;
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #ffed4a;
+}
+
+/* Общие стили для всех карточек и контейнеров */
+.container, .card, .modal-content, input, select, textarea, .inventory-item, 
+.case-card, .withdrawal-card, .notification-item, .admin-btn, .welcome-section,
+.profile-section, .inventory-section, .user-info, .balance-section, 
+.items-container, .case-info, .profile-header, .cases-container, 
+.welcome-container, .case-items, .case-content, .case-details {
+    background: #1a1a1a !important;
+    color: #ffd700 !important;
+    border-color: #ffd700 !important;
+    border: 1px solid #ffd700;
+}
+
+/* Стили для контейнеров на главной */
+.welcome-container, .cases-container {
+    background: #1a1a1a !important;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.1);
+}
+
+/* Стили для контейнеров внутри кейсов */
+.case-content, .case-items, .case-details {
+    background: #1a1a1a !important;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+/* Дополнительные стили для секций */
+.welcome-section, .profile-section, .inventory-section {
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+/* Стили для заголовков секций */
+.section-title, h1, h2, h3, h4, h5, h6 {
+    color: #ffd700 !important;
+    border-bottom: 1px solid #ffd700;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+/* Стили для карточек */
+.inventory-item:hover, .case-card:hover, .withdrawal-card:hover, 
+.notification-item:hover, .admin-btn:hover {
+    background: #252525 !important;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.2) !important;
+    transform: translateY(-5px);
+}
+
+/* Цвета текста */
+.item-name, .item-price, .user-name, .balance-amount, 
+.notification-message, .page-title, .welcome-text, .profile-info,
+.inventory-header, .case-description {
+    color: #ffd700 !important;
+}
+
+/* Второстепенный текст */
+.timestamp, .notification-time, .item-description, .user-status,
+.balance-label, .inventory-empty {
+    color: #a3a3a3 !important;
+}
+
+/* Стили для форм */
+input, select, textarea {
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #ffd700;
+    outline: none;
+    background: #252525 !important;
+}
+
+input:focus, select:focus, textarea:focus {
+    box-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+}
+
+/* Стили для кнопок */
+button, .btn {
+    background: #1a1a1a !important;
+    color: #ffd700 !important;
+    border: 2px solid #ffd700 !important;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+button:hover, .btn:hover {
+    background: #ffd700 !important;
+    color: #1a1a1a !important;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+}
+
+/* Стили для сетки карточек */
+.items-grid, .cases-grid, .withdrawals-grid {
+    background: transparent !important;
+}
+
+/* Стили для модальных окон */
+.modal {
+    background: rgba(0, 0, 0, 0.8) !important;
+}
+
+.modal-content {
+    border: 2px solid #ffd700 !important;
+    background: #1a1a1a !important;
+}
+
+/* Стили для таблиц */
+table {
+    background: #1a1a1a;
+    color: #ffd700;
+}
+
+th, td {
+    border-color: #ffd700 !important;
+    background: #1a1a1a !important;
+}
+
+/* Стили для фона выпадающих меню */
+select option {
+    background: #1a1a1a !important;
+    color: #ffd700 !important;
+}
+
+/* Стили для алертов и уведомлений */
+.alert, .notification {
+    background: #1a1a1a;
+    border: 1px solid #ffd700;
+    color: #ffd700;
+}
+
+.balance-btn {
+    background: #ffd700 !important;
+    color: #1a1a1a !important;
+}
+
+.amount-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.amount-btn {
+    padding: 10px;
+    font-size: 16px;
+}
+
+.pay-btn {
+    width: 100%;
+    padding: 15px;
+    font-size: 18px;
+    margin-top: 15px;
+}
+
+#customAmount {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+</style>

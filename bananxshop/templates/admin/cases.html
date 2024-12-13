@@ -1,0 +1,191 @@
+<!-- templates/admin/cases.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Управление кейсами</h2>
+    
+    <div class="admin-form">
+        <h3>Создать новый кейс</h3>
+        <form method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="name">Название кейса:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="price">Цена:</label>
+                <input type="number" id="price" name="price" step="0.01" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="image">Изображение:</label>
+                <input type="file" id="image" name="image" accept="image/*" required>
+            </div>
+            
+            <h4>Предметы в кейсе:</h4>
+            <div id="items-container">
+                {% for item in items %}
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" 
+                               name="item_{{ item.id }}" 
+                               value="{{ item.id }}"
+                               data-price="{{ item.price }}"
+                               data-name="{{ item.name }}">
+                        {{ item.name }} ({{ item.price }}₽)
+                    </label>
+                    <input type="number" 
+                           name="chance_{{ item.id }}" 
+                           placeholder="Шанс выпадения %" 
+                           step="0.01" 
+                           min="0" 
+                           max="100">
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="form-group">
+                <button type="button" class="auto-chances-btn" onclick="calculateChances()">
+                    <i class="fas fa-magic"></i> Автоматически рассчитать шансы
+                </button>
+            </div>
+            
+            <button type="submit" class="submit-btn">Создать кейс</button>
+        </form>
+    </div>
+    
+    <h3>Существующие кейсы</h3>
+    <div class="cases-grid">
+        {% for case in cases %}
+        <div class="case-card">
+            <img src="{{ url_for('static', filename='uploads/' + case.image) }}" 
+                 alt="{{ case.name }}" class="case-image">
+            <h3 class="case-name">{{ case.name }}</h3>
+            <p class="case-price">{{ case.price }}₽</p>
+            <form method="POST" action="{{ url_for('admin_delete_case', case_id=case.id) }}"
+                  onsubmit="return confirm('Вы уверены, что хотите удалить этот кейс?');">
+                <button type="submit" class="delete-btn">Удалить</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function calculateChances() {
+    const casePrice = parseFloat(document.getElementById('price').value);
+    if (!casePrice) {
+        alert('Сначала укажите цену кейса');
+        return;
+    }
+
+    // Собираем все выбранные предметы
+    const selectedItems = [];
+    document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+        const itemId = checkbox.value;
+        const itemPrice = parseFloat(checkbox.getAttribute('data-price'));
+        const itemName = checkbox.getAttribute('data-name');
+        selectedItems.push({ id: itemId, price: itemPrice, name: itemName });
+    });
+
+    if (selectedItems.length === 0) {
+        alert('Выберите хотя бы один предмет');
+        return;
+    }
+
+    // Сортируем предметы по цене
+    selectedItems.sort((a, b) => b.price - a.price);
+
+    // Находим предметы дороже и дешевле кейса
+    const expensiveItems = selectedItems.filter(item => item.price >= casePrice);
+    const cheapItems = selectedItems.filter(item => item.price < casePrice);
+
+    // Целевая вероятность окупаемости ~25%
+    const targetProfitChance = 0.25;
+
+    // Распределяем шансы
+    let totalChance = 100;
+    let profitableChance = totalChance * targetProfitChance; // 25% на окупаемые предметы
+    let unprofitableChance = totalChance - profitableChance; // 75% на неокупаемые предметы
+
+    // Рассчитываем веса для дорогих предметов (окупаемых)
+    expensiveItems.forEach(item => {
+        // Чем ближе к цене кейса, тем выше шанс
+        const priceDiff = Math.abs(item.price - casePrice);
+        const normalizedDiff = priceDiff / casePrice;
+        item.weight = 1 / (1 + normalizedDiff);
+    });
+
+    // Рассчитываем веса для дешевых предметов
+    cheapItems.forEach(item => {
+        // Чем ближе к цене кейса, тем выше шанс, но меньше чем у дорогих
+        const priceDiff = Math.abs(item.price - casePrice);
+        const normalizedDiff = priceDiff / casePrice;
+        item.weight = 1 / (1 + normalizedDiff * 2);
+    });
+
+    // Нормализуем веса и распределяем шансы
+    if (expensiveItems.length > 0) {
+        const expensiveTotalWeight = expensiveItems.reduce((sum, item) => sum + item.weight, 0);
+        expensiveItems.forEach(item => {
+            item.chance = (item.weight / expensiveTotalWeight) * profitableChance;
+        });
+    }
+
+    if (cheapItems.length > 0) {
+        const cheapTotalWeight = cheapItems.reduce((sum, item) => sum + item.weight, 0);
+        cheapItems.forEach(item => {
+            item.chance = (item.weight / cheapTotalWeight) * unprofitableChance;
+        });
+    }
+
+    // Применяем рассчитанные шансы
+    [...expensiveItems, ...cheapItems].forEach(item => {
+        const chanceInput = document.querySelector(`input[name="chance_${item.id}"]`);
+        chanceInput.value = item.chance.toFixed(2);
+    });
+
+    // Показываем информацию о распределении
+    let infoMessage = 'Распределение шансов:\n\n';
+    let expectedValue = 0;
+
+    [...expensiveItems, ...cheapItems].forEach(item => {
+        infoMessage += `${item.name} (${item.price}₽): ${item.chance.toFixed(2)}%\n`;
+        expectedValue += (item.price * (item.chance / 100));
+    });
+
+    infoMessage += `\nОжидаемая стоимость: ${expectedValue.toFixed(2)}₽`;
+    infoMessage += `\nСтоимость кейса: ${casePrice}₽`;
+    infoMessage += `\nОжидаемая окупаемость: ${((expectedValue / casePrice) * 100).toFixed(2)}%`;
+    
+    alert(infoMessage);
+}
+</script>
+
+<style>
+.auto-chances-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.auto-chances-btn:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+}
+
+.auto-chances-btn i {
+    font-size: 18px;
+}
+</style>
+{% endblock %}
